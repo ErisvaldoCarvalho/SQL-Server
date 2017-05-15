@@ -1,4 +1,5 @@
 
+
 IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'SP_OMGERARSCRIPTBASICO'))
 	DROP PROC SP_OMGERARSCRIPTBASICO
 IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'SP_OMReindexarTabelas'))
@@ -70,6 +71,7 @@ SELECT
     END + ',' AS ParametroTipo,
     sys.systypes.name AS Tipo,
     sys.syscolumns.length Caracteres,
+	sys.syscolumns.colstat AutoIncremento,
     sys.sysobjects.id,
     sys.syscolumns.colorder,
     sys.sysobjects.xtype,
@@ -138,6 +140,8 @@ DECLARE @ValidarNulidade VARCHAR(100) = '1 = 1'
 DECLARE @SQL VARCHAR(MAX)
 DECLARE @Colorder INT = 0
 
+SET NOCOUNT ON
+
 SELECT COLUNA, CONSTRAINT_NAME,colorder  INTO #TEMP FROM VW_OMColunas WHERE TABELA = @TABELAORIGEM
 
 
@@ -179,8 +183,10 @@ ELSE
 IF(LEN(@Amarracao)<1)
 BEGIN
 
-PRINT 'PRINT ''Tabela: '+ @TabelaOrigem +'''
-IF(NOT EXISTS(SELECT 1 FROM ' + @BancoDestino + '..' + @TabelaOrigem + '))
+PRINT 'PRINT ''Tabela: '+ @TabelaOrigem +''''
+IF(EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = @TabelaOrigem AND AutoIncremento > 0))
+PRINT 'SET IDENTITY_INSERT IMPORTACAO..' + @TabelaOrigem + ' ON'
+PRINT'IF(NOT EXISTS(SELECT 1 FROM ' + @BancoDestino + '..' + @TabelaOrigem + '))
 INSERT INTO ' + @BancoDestino + '..' + @TabelaOrigem + '(' 
 PRINT @ColunasDestino1 
 IF(LEN(@ColunasDestino2)>0)
@@ -188,14 +194,18 @@ PRINT @ColunasDestino2
 PRINT'SELECT ' + @ColunasOrigem1 
 IF(LEN(@ColunasOrigem2)>0)
 PRINT @ColunasOrigem2 
-PRINT 'FROM ' + @BancoOrigem + '..' + @TabelaOrigem + ' T
-GO'
+PRINT 'FROM ' + @BancoOrigem + '..' + @TabelaOrigem + ' T'
+IF(EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = @TabelaOrigem AND AutoIncremento > 0))
+PRINT 'SET IDENTITY_INSERT IMPORTACAO..' + @TabelaOrigem + ' OFF'
+PRINT'GO'
 
 END
 ELSE
 BEGIN
-PRINT 'PRINT ''Tabela: '+ @TabelaOrigem +'''
-INSERT INTO ' + @BancoDestino + '..' + @TabelaOrigem + '(' 
+PRINT 'PRINT ''Tabela: '+ @TabelaOrigem +''''
+IF(EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = @TabelaOrigem AND AutoIncremento > 0))
+PRINT'SET IDENTITY_INSERT IMPORTACAO..' + @TabelaOrigem + ' ON'
+PRINT'INSERT INTO ' + @BancoDestino + '..' + @TabelaOrigem + '(' 
 + @ColunasDestino1 
 IF(LEN(@ColunasDestino2)>0)
 PRINT @ColunasDestino2 
@@ -204,12 +214,14 @@ IF(LEN(@ColunasOrigem2)>0)
 PRINT @ColunasOrigem2 
 PRINT 'FROM ' + @BancoOrigem + '..' + @TabelaOrigem + ' T
 LEFT JOIN ' + @BancoDestino + '..' + @TabelaDestino + ' T1 ON ' + @Amarracao + '
-WHERE T1.' + @ValidarNulidade + '
-GO'
+WHERE T1.' + @ValidarNulidade 
+IF(EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = @TabelaOrigem AND AutoIncremento > 0))
+PRINT 'SET IDENTITY_INSERT IMPORTACAO..' + @TabelaOrigem + ' OFF'
+PRINT'GO'
 END
 
 PRINT @SQL
 
 DROP TABLE #TEMP
-
+SET NOCOUNT OFF
 GO
