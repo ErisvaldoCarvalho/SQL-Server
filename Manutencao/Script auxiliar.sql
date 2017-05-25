@@ -185,7 +185,7 @@ BEGIN
 
 PRINT 'PRINT ''Tabela: '+ @TabelaOrigem +''''
 IF(EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = @TabelaOrigem AND AutoIncremento > 0))
-PRINT 'SET IDENTITY_INSERT IMPORTACAO..' + @TabelaOrigem + ' ON'
+PRINT 'SET IDENTITY_INSERT ' + @BancoDestino + '..' + @TabelaOrigem + ' ON'
 PRINT'IF(NOT EXISTS(SELECT 1 FROM ' + @BancoDestino + '..' + @TabelaOrigem + '))
 INSERT INTO ' + @BancoDestino + '..' + @TabelaOrigem + '(' 
 PRINT @ColunasDestino1 
@@ -196,7 +196,7 @@ IF(LEN(@ColunasOrigem2)>0)
 PRINT @ColunasOrigem2 
 PRINT 'FROM ' + @BancoOrigem + '..' + @TabelaOrigem + ' T'
 IF(EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = @TabelaOrigem AND AutoIncremento > 0))
-PRINT 'SET IDENTITY_INSERT IMPORTACAO..' + @TabelaOrigem + ' OFF'
+PRINT 'SET IDENTITY_INSERT ' + @BancoDestino + '..' + @TabelaOrigem + ' OFF'
 PRINT'GO'
 
 END
@@ -204,7 +204,7 @@ ELSE
 BEGIN
 PRINT 'PRINT ''Tabela: '+ @TabelaOrigem +''''
 IF(EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = @TabelaOrigem AND AutoIncremento > 0))
-PRINT'SET IDENTITY_INSERT IMPORTACAO..' + @TabelaOrigem + ' ON'
+PRINT'SET IDENTITY_INSERT ' + @BancoDestino + '..' + @TabelaOrigem + ' ON'
 PRINT'INSERT INTO ' + @BancoDestino + '..' + @TabelaOrigem + '(' 
 + @ColunasDestino1 
 IF(LEN(@ColunasDestino2)>0)
@@ -216,7 +216,7 @@ PRINT 'FROM ' + @BancoOrigem + '..' + @TabelaOrigem + ' T
 LEFT JOIN ' + @BancoDestino + '..' + @TabelaDestino + ' T1 ON ' + @Amarracao + '
 WHERE T1.' + @ValidarNulidade 
 IF(EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = @TabelaOrigem AND AutoIncremento > 0))
-PRINT 'SET IDENTITY_INSERT IMPORTACAO..' + @TabelaOrigem + ' OFF'
+PRINT 'SET IDENTITY_INSERT ' + @BancoDestino + '..' + @TabelaOrigem + ' OFF'
 PRINT'GO'
 END
 
