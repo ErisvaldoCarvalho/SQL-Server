@@ -12,6 +12,8 @@ IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'Vw_ChecarRelacionamento'))
 	DROP VIEW Vw_ChecarRelacionamento
 IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'SP_ImportarTabela'))
 	DROP PROC SP_ImportarTabela
+IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'SP_OrganizarSequencia'))	
+	DROP PROC SP_OrganizarSequencia
 go
 
 CREATE PROC SP_OMGerarScriptBasico
@@ -224,4 +226,42 @@ PRINT @SQL
 
 DROP TABLE #TEMP
 SET NOCOUNT OFF
+GO
+
+
+CREATE PROC SP_OrganizarSequencia
+	@Tabela VARCHAR(200),
+	@ColunaAConcatenar VARCHAR(200) = 'CodLoja',
+	@ColunaChave VARCHAR(200) = 'Codigo',
+	@ColunaSequencia VARCHAR(200) = 'Sequencia'
+AS
+
+DECLARE @SQL VARCHAR(MAX) =
+
+'IF(NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = ''' + @Tabela + ''' AND COLUNA = ''NOVASEQUENCIA''))
+	ALTER TABLE ' + @Tabela + ' ADD NOVASEQUENCIA FLOAT
+IF(NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = ''' + @Tabela + ''' AND COLUNA = ''NOVOCODIGO''))
+	ALTER TABLE ' + @Tabela + ' ADD NOVOCODIGO FLOAT
+
+IF(EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = ''OrganizarSequencia''))
+	DROP TABLE OrganizarSequencia
+
+CREATE TABLE OrganizarSequencia
+(
+	Sequencia INT PRIMARY KEY IDENTITY(1,1),
+	ChaveOrigem FLOAT,
+	Concatenar FLOAT
+)
+
+INSERT INTO OrganizarSequencia(ChaveOrigem, Concatenar)
+SELECT ' + @ColunaChave + ', ' + @ColunaAConcatenar + ' FROM ' + @Tabela + '
+
+UPDATE ' + @Tabela + '
+SET NOVOCODIGO = CONVERT(FLOAT, CONVERT(VARCHAR, OrganizarSequencia.Concatenar) + CONVERT(VARCHAR, OrganizarSequencia.Sequencia)), NOVASEQUENCIA = OrganizarSequencia.Sequencia
+FROM ' + @Tabela + '
+INNER JOIN OrganizarSequencia ON OrganizarSequencia.ChaveOrigem = ' + @Tabela + '.' + @ColunaChave
+
+PRINT @SQL
+
+EXEC (@SQL)
 GO
