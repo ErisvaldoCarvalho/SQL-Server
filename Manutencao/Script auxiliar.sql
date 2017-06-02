@@ -30,8 +30,8 @@ IF EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'Bancos')
 go
 
 
-IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'SP_OMGERARSCRIPTBASICO'))
-	DROP PROC SP_OMGERARSCRIPTBASICO
+IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'SP_OMGerarScriptBasico'))
+	DROP PROC SP_OMGerarScriptBasico
 IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'SP_OMReindexarTabelas'))
 	DROP PROC SP_OMReindexarTabelas
 IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'VW_OMColunas'))
@@ -270,10 +270,10 @@ DECLARE @SQL VARCHAR(MAX) =
 
 'DECLARE @Concatenar FLOAT
 
-IF(NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = ''' + @Tabela + ''' AND COLUNA = ''NOVASEQUENCIA''))
-	ALTER TABLE ' + @Tabela + ' ADD NOVASEQUENCIA FLOAT
-IF(NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = ''' + @Tabela + ''' AND COLUNA = ''NOVOCODIGO''))
-	ALTER TABLE ' + @Tabela + ' ADD NOVOCODIGO FLOAT
+IF(NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE Tabela = ''' + @Tabela + ''' AND COLUNA = ''NovaSequencia''))
+	ALTER TABLE ' + @Tabela + ' ADD NovaSequencia FLOAT
+IF(NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE Tabela = ''' + @Tabela + ''' AND COLUNA = ''NovoCodigo''))
+	ALTER TABLE ' + @Tabela + ' ADD NovoCodigo FLOAT
 ELSE
 	UPDATE ' + @Tabela + ' SET NovoCodigo = NULL
 
@@ -282,7 +282,7 @@ WHILE(EXISTS(SELECT 1 FROM ' + @Tabela + ' WHERE NovoCodigo IS NULL))
 BEGIN
 	SET @Concatenar =  (SELECT MIN(' + @ColunaAConcatenar + ') FROM ' + @Tabela + ' WHERE NovoCodigo IS NULL AND ' + @ColunaAConcatenar + ' IS NOT NULL)
 
-	IF(EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = ''OrganizarSequencia''))
+	IF(EXISTS(SELECT 1 FROM VW_OMColunas WHERE Tabela = ''OrganizarSequencia''))
 	DROP TABLE OrganizarSequencia
 
 	CREATE TABLE OrganizarSequencia
@@ -296,7 +296,7 @@ BEGIN
 	SELECT ' + @ColunaChave + ', ' + @ColunaAConcatenar + ' FROM ' + @Tabela + ' WHERE ' + @ColunaAConcatenar + ' = @Concatenar
 
 	UPDATE ' + @Tabela + '
-	SET NOVOCODIGO = CONVERT(FLOAT, CONVERT(VARCHAR, OrganizarSequencia.Concatenar) + CONVERT(VARCHAR, OrganizarSequencia.Sequencia)), NOVASEQUENCIA = OrganizarSequencia.Sequencia
+	SET NovoCodigo = CONVERT(FLOAT, CONVERT(VARCHAR, OrganizarSequencia.Concatenar) + CONVERT(VARCHAR, OrganizarSequencia.Sequencia)), NovaSequencia = OrganizarSequencia.Sequencia
 	FROM ' + @Tabela + '
 	INNER JOIN OrganizarSequencia ON OrganizarSequencia.ChaveOrigem = ' + @Tabela + '.' + @ColunaChave + '
 END'
