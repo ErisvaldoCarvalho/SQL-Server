@@ -268,28 +268,38 @@ AS
 
 DECLARE @SQL VARCHAR(MAX) =
 
-'IF(NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = ''' + @Tabela + ''' AND COLUNA = ''NOVASEQUENCIA''))
+'DECLARE @Concatenar FLOAT
+
+IF(NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = ''' + @Tabela + ''' AND COLUNA = ''NOVASEQUENCIA''))
 	ALTER TABLE ' + @Tabela + ' ADD NOVASEQUENCIA FLOAT
 IF(NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = ''' + @Tabela + ''' AND COLUNA = ''NOVOCODIGO''))
 	ALTER TABLE ' + @Tabela + ' ADD NOVOCODIGO FLOAT
+ELSE
+	UPDATE ' + @Tabela + ' SET NovoCodigo = NULL
 
-IF(EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = ''OrganizarSequencia''))
+
+WHILE(EXISTS(SELECT 1 FROM ' + @Tabela + ' WHERE NovoCodigo IS NULL))
+BEGIN
+	SET @Concatenar =  (SELECT MIN(' + @ColunaAConcatenar + ') FROM ' + @Tabela + ' WHERE NovoCodigo IS NULL AND ' + @ColunaAConcatenar + ' IS NOT NULL)
+
+	IF(EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = ''OrganizarSequencia''))
 	DROP TABLE OrganizarSequencia
 
-CREATE TABLE OrganizarSequencia
-(
-	Sequencia INT PRIMARY KEY IDENTITY(1,1),
-	ChaveOrigem FLOAT,
-	Concatenar FLOAT
-)
+	CREATE TABLE OrganizarSequencia
+	(
+		Sequencia INT PRIMARY KEY IDENTITY(1,1),
+		ChaveOrigem FLOAT,
+		Concatenar FLOAT
+	)
 
-INSERT INTO OrganizarSequencia(ChaveOrigem, Concatenar)
-SELECT ' + @ColunaChave + ', ' + @ColunaAConcatenar + ' FROM ' + @Tabela + '
+	INSERT INTO OrganizarSequencia(ChaveOrigem, Concatenar)
+	SELECT ' + @ColunaChave + ', ' + @ColunaAConcatenar + ' FROM ' + @Tabela + ' WHERE ' + @ColunaAConcatenar + ' = @Concatenar
 
-UPDATE ' + @Tabela + '
-SET NOVOCODIGO = CONVERT(FLOAT, CONVERT(VARCHAR, OrganizarSequencia.Concatenar) + CONVERT(VARCHAR, OrganizarSequencia.Sequencia)), NOVASEQUENCIA = OrganizarSequencia.Sequencia
-FROM ' + @Tabela + '
-INNER JOIN OrganizarSequencia ON OrganizarSequencia.ChaveOrigem = ' + @Tabela + '.' + @ColunaChave
+	UPDATE ' + @Tabela + '
+	SET NOVOCODIGO = CONVERT(FLOAT, CONVERT(VARCHAR, OrganizarSequencia.Concatenar) + CONVERT(VARCHAR, OrganizarSequencia.Sequencia)), NOVASEQUENCIA = OrganizarSequencia.Sequencia
+	FROM ' + @Tabela + '
+	INNER JOIN OrganizarSequencia ON OrganizarSequencia.ChaveOrigem = ' + @Tabela + '.' + @ColunaChave + '
+END'
 
 PRINT @SQL
 
