@@ -1,0 +1,25 @@
+
+CREATE VIEW VW_OMRelacionamento
+AS
+SELECT 
+Q.FK,
+Q.Coluna,
+Q.Tabela,
+Q.Tabela2,
+'ALTER TABLE ' + Q.Tabela + ' ADD CONSTRAINT ' + Q.FK + ' FOREIGN KEY ( ' + Q.Coluna + ' ) REFERENCES ' + Q.Tabela2 + ' (CODIGO)' SCRIPT 
+
+FROM (SELECT  
+'FK_' + Tabela + '_' + SUBSTRING(Coluna,7,50)FK,
+ Coluna,
+ Tabela,
+SUBSTRING(Coluna,7,50)Tabela2 
+FROM 
+	VW_OMColunas
+WHERE XTYPE='U'
+AND Coluna LIKE 'CODIGO%' 
+AND Coluna <>'CODIGO')Q
+INNER JOIN SYSOBJECTS ON SYSOBJECTS.NAME = Tabela2 
+AND SYSOBJECTS.XTYPE='U'
+AND FK NOT IN(SELECT NAME FROM SYSOBJECTS WHERE NAME LIKE 'FK%')
+
+GO
