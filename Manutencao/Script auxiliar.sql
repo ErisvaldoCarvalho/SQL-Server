@@ -44,7 +44,9 @@ IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'SP_ImportarTabela'))
 	DROP PROC SP_ImportarTabela
 IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'SP_OrganizarSequencia'))	
 	DROP PROC SP_OrganizarSequencia
-go
+IF(EXISTS(SELECT 1 FROM SYS.OBJECTS WHERE NAME LIKE 'Vw_OMTabelas'))
+	DROP VIEW Vw_OMTabelas	
+GO	
 
 CREATE PROC SP_OMGerarScriptBasico
       @TABELA VARCHAR(500)
@@ -304,4 +306,40 @@ END'
 PRINT @SQL
 
 EXEC (@SQL)
+GO
+
+
+CREATE VIEW Vw_OMTabelas
+AS
+/*
+	View para listar a quantidade de registros e espaço ocupado em disco pelas tabelas.
+	Data de criação: 09/08/2018
+	Ultima atualização: 09/08/2018
+*/
+SELECT
+    SYS.TABLES.NAME AS Entidade,
+    SYS.PARTITIONS.rows AS Registros,
+	
+	(SUM(SYS.ALLOCATION_UNITS.total_pages) * 8) / 1024.0 / 1024.0 AS EspacoTotalGB,
+    (SUM(SYS.ALLOCATION_UNITS.used_pages) * 8) / 1024.0 / 1024.0 AS EspacoUsadoGB,
+    ((SUM(SYS.ALLOCATION_UNITS.total_pages) - SUM(SYS.ALLOCATION_UNITS.used_pages)) * 8) / 1024.0 / 1024.0 AS EspacoNaoUsadoGB,
+
+	(SUM(SYS.ALLOCATION_UNITS.total_pages) * 8) / 1024.0 AS EspacoTotalMB,
+    (SUM(SYS.ALLOCATION_UNITS.used_pages) * 8) / 1024.0 AS EspacoUsadoMB,
+    ((SUM(SYS.ALLOCATION_UNITS.total_pages) - SUM(SYS.ALLOCATION_UNITS.used_pages)) * 8) / 1024.0 AS EspacoNaoUsadoMB,
+
+    SUM(SYS.ALLOCATION_UNITS.total_pages) * 8 AS EspacoTotalKB,
+    SUM(SYS.ALLOCATION_UNITS.used_pages) * 8 AS EspacoUsadoKB,
+    (SUM(SYS.ALLOCATION_UNITS.total_pages) - SUM(SYS.ALLOCATION_UNITS.used_pages)) * 8 AS EspacoNaoUsadoKB
+	    
+FROM SYS.TABLES  
+INNER JOIN SYS.INDEXES ON SYS.TABLES.OBJECT_ID = SYS.INDEXES.object_id
+INNER JOIN SYS.PARTITIONS ON SYS.INDEXES.object_id = SYS.PARTITIONS.OBJECT_ID AND SYS.INDEXES.index_id = SYS.PARTITIONS.index_id
+INNER JOIN SYS.ALLOCATION_UNITS ON SYS.PARTITIONS.partition_id = SYS.ALLOCATION_UNITS.container_id
+LEFT OUTER JOIN SYS.SCHEMAS ON SYS.TABLES.schema_id = SYS.SCHEMAS.schema_id
+WHERE SYS.TABLES.NAME NOT LIKE 'dt%'
+    AND SYS.TABLES.is_ms_shipped = 0
+    AND SYS.TABLES.OBJECT_ID > 255
+GROUP BY SYS.TABLES.Name, SYS.SCHEMAS.Name, SYS.PARTITIONS.Rows
+
 GO
