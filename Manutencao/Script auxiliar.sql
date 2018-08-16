@@ -46,6 +46,20 @@ IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'SP_OrganizarSequencia'))
 	DROP PROC SP_OrganizarSequencia
 IF(EXISTS(SELECT 1 FROM SYS.OBJECTS WHERE NAME LIKE 'Vw_OMTabelas'))
 	DROP VIEW Vw_OMTabelas	
+
+IF(EXISTS(SELECT 1 FROM SYS.OBJECTS WHERE NAME LIKE 'SP_TabelasFaltantes'))
+	DROP PROC SP_TabelasFaltantes
+IF(EXISTS(SELECT 1 FROM SYS.OBJECTS WHERE NAME LIKE 'SP_InserirColuna'))
+	DROP PROC SP_InserirColuna
+IF(EXISTS(SELECT 1 FROM SYS.OBJECTS WHERE NAME LIKE 'SP_InserirColunasIniciais'))
+	DROP PROC SP_InserirColunasIniciais
+IF(EXISTS(SELECT 1 FROM SYS.OBJECTS WHERE NAME LIKE 'SP_RemoverColunasFinais'))
+	DROP PROC SP_RemoverColunasFinais
+IF(EXISTS(SELECT 1 FROM SYS.OBJECTS WHERE NAME LIKE 'SP_InserirColunasFinais'))
+	DROP PROC SP_InserirColunasFinais
+IF(EXISTS(SELECT 1 FROM SYS.OBJECTS WHERE NAME LIKE 'SP_MostrarEstrutura'))
+	DROP PROC SP_MostrarEstrutura
+	
 GO	
 
 CREATE PROC SP_OMGerarScriptBasico
@@ -72,7 +86,6 @@ SET NOCOUNT OFF
 PRINT '--COLUNAS'
 PRINT SUBSTRING(@SQL,0,LEN(@SQL))
 PRINT '
-
 --PARAMETROS'
 PRINT '@' + REPLACE(SUBSTRING(@SQL,0,LEN(@SQL)), ', ',', @')
 
@@ -131,8 +144,6 @@ WHERE  CONSTRAINT_NAME = (
         SYSOBJECTS.XTYPE = 'PK'))ChavePrimaria ON SYSOBJECTS.NAME = ChavePrimaria.TABLE_NAME AND syscolumns.name = ChavePrimaria.COLUMN_NAME
 WHERE     (sys.sysobjects.xtype = 'U') OR
                       (sys.sysobjects.xtype = 'V')
-
-
 
 GO
 
@@ -260,7 +271,7 @@ DROP TABLE #TEMP
 SET NOCOUNT OFF
 GO
 
-
+GO
 CREATE PROC SP_OrganizarSequencia
 	@Tabela VARCHAR(200),
 	@ColunaAConcatenar VARCHAR(200) = 'CodLoja',
@@ -271,32 +282,25 @@ AS
 DECLARE @SQL VARCHAR(MAX) =
 
 'DECLARE @Concatenar FLOAT
-
 IF(NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE Tabela = ''' + @Tabela + ''' AND COLUNA = ''NovaSequencia''))
 	ALTER TABLE ' + @Tabela + ' ADD NovaSequencia FLOAT
 IF(NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE Tabela = ''' + @Tabela + ''' AND COLUNA = ''NovoCodigo''))
 	ALTER TABLE ' + @Tabela + ' ADD NovoCodigo FLOAT
 ELSE
 	UPDATE ' + @Tabela + ' SET NovoCodigo = NULL
-
-
 WHILE(EXISTS(SELECT 1 FROM ' + @Tabela + ' WHERE NovoCodigo IS NULL))
 BEGIN
 	SET @Concatenar =  (SELECT MIN(' + @ColunaAConcatenar + ') FROM ' + @Tabela + ' WHERE NovoCodigo IS NULL AND ' + @ColunaAConcatenar + ' IS NOT NULL)
-
 	IF(EXISTS(SELECT 1 FROM VW_OMColunas WHERE Tabela = ''OrganizarSequencia''))
 	DROP TABLE OrganizarSequencia
-
 	CREATE TABLE OrganizarSequencia
 	(
 		Sequencia INT PRIMARY KEY IDENTITY(1,1),
 		ChaveOrigem FLOAT,
 		Concatenar FLOAT
 	)
-
 	INSERT INTO OrganizarSequencia(ChaveOrigem, Concatenar)
 	SELECT ' + @ColunaChave + ', ' + @ColunaAConcatenar + ' FROM ' + @Tabela + ' WHERE ' + @ColunaAConcatenar + ' = @Concatenar
-
 	UPDATE ' + @Tabela + '
 	SET NovoCodigo = CONVERT(FLOAT, CONVERT(VARCHAR, OrganizarSequencia.Concatenar) + CONVERT(VARCHAR, OrganizarSequencia.Sequencia)), NovaSequencia = OrganizarSequencia.Sequencia
 	FROM ' + @Tabela + '
@@ -342,4 +346,195 @@ WHERE SYS.TABLES.NAME NOT LIKE 'dt%'
     AND SYS.TABLES.OBJECT_ID > 255
 GROUP BY SYS.TABLES.Name, SYS.SCHEMAS.Name, SYS.PARTITIONS.Rows
 
+GO
+
+IF(NOT EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'ERIS_Estrutura'))
+CREATE TABLE ERIS_Estrutura(
+	[ID] [int] IDENTITY(1,1) NOT NULL,
+	[Script] [varchar](400) NULL,
+	[Primeira] [bit] NULL,
+	[Tabela] [varchar](200) NULL,
+	[Coluna] [varchar](200) NULL,
+	[Interface] [varchar](400) NULL,
+	[TabelaOrigem] [varchar](50) NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[ID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+CREATE PROC SP_InserirColunasIniciais
+	@Tabela VARCHAR(200)
+AS
+	DECLARE @SQL VARCHAR(MAX)
+	SET @SQL = REPLACE('IF NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE Tabela = ''@Tabela'') CREATE TABLE @Tabela (ID FLOAT PRIMARY KEY)','@Tabela', @Tabela)
+	--PRINT @SQL
+	SET NOCOUNT ON
+	
+	IF(NOT EXISTS(SELECT 1 FROM ERIS_Estrutura WHERE Script = @SQL))	
+		INSERT INTO ERIS_Estrutura(Script, Primeira, Tabela)VALUES(@SQL, 1, @Tabela)
+	
+	EXEC (@SQL)
+	
+	SET @SQL = REPLACE('IF NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE Tabela = ''@Tabela'' AND Coluna = ''Codigo'') ALTER TABLE @Tabela ADD Codigo FLOAT','@Tabela', @Tabela)
+	
+	--PRINT @SQL
+	
+	IF(NOT EXISTS(SELECT 1 FROM ERIS_Estrutura WHERE Script = @SQL))	
+		INSERT INTO ERIS_Estrutura(Script, Primeira, Tabela)VALUES(@SQL, 1, @Tabela)
+	
+	EXEC (@SQL)
+	
+	SET @SQL = REPLACE('IF NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE Tabela = ''@Tabela'' AND Coluna = ''ID_Entidade'') ALTER TABLE @Tabela ADD ID_Entidade FLOAT','@Tabela', @Tabela)
+	--PRINT @SQL
+	
+	IF(NOT EXISTS(SELECT 1 FROM ERIS_Estrutura WHERE Script = @SQL))	
+		INSERT INTO ERIS_Estrutura(Script, Primeira, Tabela)VALUES(@SQL, 1, @Tabela)
+	
+	EXEC (@SQL)
+	SET NOCOUNT OFF
+GO
+
+CREATE PROC [dbo].[SP_TabelasFaltantes]
+AS
+
+DECLARE @Tabela VARCHAR(200)
+
+SELECT  T.Tabela INTO #Temp FROM (SELECT REPLACE(Coluna,'ID_','') Tabela  FROM ERIS_Estrutura WHERE Coluna LIKE 'ID_%')T
+LEFT JOIN ERIS_Estrutura ON T.Tabela = ERIS_Estrutura.Tabela
+WHERE ERIS_Estrutura.Tabela IS NULL
+
+WHILE(EXISTS(SELECT 1 FROM #Temp))
+BEGIN
+	SET @Tabela = (SELECT TOP 1 Tabela FROM #Temp)
+	PRINT '
+	SP_InserirColuna ' + @Tabela + '
+	'
+	DELETE FROM #Temp WHERE Tabela = @Tabela
+END
+
+DROP TABLE #Temp
+GO
+
+CREATE PROC SP_RemoverColunasFinais
+	@Tabela VARCHAR(200)
+AS
+	DECLARE @SQL VARCHAR(MAX)
+
+WHILE EXISTS(SELECT 1 FROM SYS.objects WHERE parent_object_id = OBJECT_ID('' + @Tabela + '') AND TYPE = 'D')
+BEGIN
+	SET @SQL = (SELECT TOP 1 'ALTER TABLE ' + @Tabela + ' DROP CONSTRAINT ' + name FROM SYS.objects WHERE parent_object_id = OBJECT_ID('' + @Tabela + '') AND TYPE = 'D')
+	EXEC (@SQL)
+END
+	
+	SET @SQL = REPLACE('
+IF EXISTS(SELECT 1 FROM VW_OMColunas WHERE Tabela = ''@Tabela'' AND Coluna = ''ID_Base'') ALTER TABLE @Tabela DROP COLUMN ID_Base
+IF EXISTS(SELECT 1 FROM VW_OMColunas WHERE Tabela = ''@Tabela'' AND Coluna = ''Ativo'') ALTER TABLE @Tabela DROP COLUMN Ativo
+IF EXISTS(SELECT 1 FROM VW_OMColunas WHERE Tabela = ''@Tabela'' AND Coluna = ''DataCadastro'') ALTER TABLE @Tabela DROP COLUMN DataCadastro','@Tabela', @Tabela)
+	
+	DELETE FROM ERIS_Estrutura WHERE Tabela = @Tabela AND Primeira = 0
+	
+	EXEC (@SQL)
+
+GO
+
+CREATE PROC SP_InserirColunasFinais
+	@Tabela VARCHAR(200)
+AS
+	DECLARE @SQL VARCHAR(MAX)
+	
+	EXEC SP_RemoverColunasFinais @Tabela
+	
+	SET @SQL = REPLACE('IF NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE Tabela = ''@Tabela'' AND Coluna = ''Ativo'') ALTER TABLE @Tabela ADD Ativo BIT','@Tabela', @Tabela)
+	--PRINT @SQL
+	
+	IF(NOT EXISTS(SELECT 1 FROM ERIS_Estrutura WHERE Script = @SQL))
+		INSERT INTO ERIS_Estrutura(Script, Primeira, Tabela)VALUES(@SQL, 0, @Tabela)
+
+	EXEC (@SQL)
+
+	SET @SQL = REPLACE('IF NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE Tabela = ''@Tabela'' AND Coluna = ''ID_Base'') ALTER TABLE @Tabela ADD ID_Base FLOAT','@Tabela', @Tabela)
+	--PRINT @SQL
+	
+	IF(NOT EXISTS(SELECT 1 FROM ERIS_Estrutura WHERE Script = @SQL))
+		INSERT INTO ERIS_Estrutura(Script, Primeira, Tabela)VALUES(@SQL, 0, @Tabela)
+	EXEC (@SQL)
+
+	SET @SQL = REPLACE('IF NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE Tabela = ''@Tabela'' AND Coluna = ''DataCadastro'') ALTER TABLE @Tabela ADD DataCadastro DATETIME DEFAULT GETDATE()','@Tabela', @Tabela)
+	--PRINT @SQL
+	
+	IF(NOT EXISTS(SELECT 1 FROM ERIS_Estrutura WHERE Script = @SQL))
+		INSERT INTO ERIS_Estrutura(Script, Primeira, Tabela)VALUES(@SQL, 0, @Tabela)
+	EXEC (@SQL)
+GO
+
+CREATE PROC SP_MostrarEstrutura
+	@Tabela VARCHAR(200)
+AS
+	DECLARE @ID INT = 0
+	DECLARE @SQL VARCHAR(MAX)
+	
+	WHILE(EXISTS(SELECT 1 FROM ERIS_Estrutura WHERE Tabela = @Tabela AND ID > @ID))
+	BEGIN
+		SET @ID = (SELECT MIN(ID) FROM ERIS_Estrutura WHERE Tabela = @Tabela AND ID > @ID)
+		SET @SQL = (SELECT Script FROM ERIS_Estrutura WHERE ID = @ID)	
+		PRINT @SQL
+	END
+GO
+
+CREATE PROC SP_InserirColuna
+	@Tabela VARCHAR(200),
+	@Coluna VARCHAR(200) = 'Descricao',
+	@Tipo VARCHAR(200) = 'VARCHAR(150)',
+	@AceitaNulo BIT = 1
+AS
+	DECLARE @SQL VARCHAR(MAX) 
+	
+	SET @Tabela = UPPER(LEFT(@Tabela,1)) + SUBSTRING(@Tabela, 2, 150)
+
+	SET @Coluna = UPPER(LEFT(@Coluna,1)) + SUBSTRING(@Coluna, 2, 150)
+		
+	EXEC SP_InserirColunasIniciais @Tabela
+	
+	IF(@Coluna LIKE '%FONE%' OR @Coluna LIKE '%CELULAR%' OR @Coluna LIKE '%FAX%' OR @Coluna LIKE 'CodigoBarra%' OR @Coluna LIKE '%NumeroEndereco%')
+		SET @Tipo = 'VARCHAR(15)'
+	
+	IF(@Coluna LIKE '%CPF%')
+		SET @Tipo = 'VARCHAR(14)'	
+
+	IF(@Coluna LIKE '%CNPJ%')
+		SET @Tipo = 'VARCHAR(18)'
+	
+	IF(@Coluna LIKE 'ID_%' OR @Coluna LIKE 'Valor%')
+		SET @Tipo = 'FLOAT'
+	
+	IF(@Coluna LIKE 'Data%')
+		SET @Tipo = 'DATETIME'
+
+	IF(@AceitaNulo = 1)
+		SET @Tipo = UPPER(@Tipo) + ' NULL'
+	ELSE
+		SET @Tipo = UPPER(@Tipo) + ' NOT NULL'
+	
+	SET NOCOUNT ON
+	DELETE FROM ERIS_Estrutura WHERE Tabela = @Tabela AND Coluna = @Coluna
+	
+	IF(EXISTS(SELECT 1 FROM VW_OMColunas WHERE TABELA = @Tabela AND COLUNA = @Coluna))
+	BEGIN
+		SET @SQL = 'ALTER TABLE ' + @Tabela + ' DROP COLUMN ' + @Coluna
+		EXEC(@SQL)
+	END
+	
+	SET @SQL = REPLACE(REPLACE(REPLACE('IF NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE Tabela = ''@Tabela'' AND Coluna = ''@Coluna'') ALTER TABLE @Tabela ADD @Coluna @Tipo','@Tabela', @Tabela), '@Tipo', @Tipo),'@Coluna', @Coluna)
+	
+	IF(NOT EXISTS(SELECT 1 FROM ERIS_Estrutura WHERE Script = @SQL))
+		INSERT INTO ERIS_Estrutura(Script, Tabela, Coluna)VALUES(@SQL, @Tabela, @Coluna)
+
+	EXEC (@SQL)
+	
+	EXEC SP_InserirColunasFinais @Tabela
+	EXEC SP_MostrarEstrutura @Tabela
+	EXEC SP_TabelasFaltantes
+	SET NOCOUNT OFF
 GO
