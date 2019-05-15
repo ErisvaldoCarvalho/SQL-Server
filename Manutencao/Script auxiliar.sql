@@ -7,7 +7,7 @@ AUXLIAM NA MANUTENÇÃO DE BANCO DE DADOS.
 
 USE master
 GO
-
+/*
 IF NOT EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'Bancos')
 	select name into Bancos from sys.databases
 GO
@@ -28,7 +28,7 @@ IF EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'Bancos')
 	IF NOT EXISTS(SELECT 1 FROM Bancos)
 		DROP TABLE Bancos
 go
-
+*/
 
 IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'SP_OMGerarScriptBasico'))
 	DROP PROC SP_OMGerarScriptBasico
@@ -173,7 +173,7 @@ CREATE PROC SP_ImportarTabela
       @BancoOrigem VARCHAR(100),
       @BancoDestino VARCHAR(100),
       @TabelaOrigem VARCHAR(100),
-      @TabelaDestino VARCHAR(100)
+      @TabelaDestino VARCHAR(100) = NULL
 AS
 DECLARE @Coluna varchar(100)
 DECLARE @ColunasDestino1 VARCHAR(MAX) = ''
@@ -184,6 +184,9 @@ DECLARE @Amarracao VARCHAR(MAX) = ''
 DECLARE @ValidarNulidade VARCHAR(100) = '1 = 1'
 DECLARE @SQL VARCHAR(MAX)
 DECLARE @Colorder INT = 0
+
+IF(@TabelaDestino IS NULL)
+	SET @TabelaDestino = @TabelaOrigem
 
 SET NOCOUNT ON
 
