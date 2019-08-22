@@ -30,6 +30,9 @@ IF EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'Bancos')
 go
 */
 
+
+IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'Fn_PrimeirasMaiusculas2'))
+	DROP FUNCTION Fn_PrimeirasMaiusculas
 IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'SP_OMGerarScriptBasico'))
 	DROP PROC SP_OMGerarScriptBasico
 IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'SP_OMReindexarTabelas'))
@@ -540,4 +543,38 @@ AS
 	EXEC SP_MostrarEstrutura @Tabela
 	EXEC SP_TabelasFaltantes
 	SET NOCOUNT OFF
+GO
+
+
+CREATE FUNCTION Fn_PrimeirasMaiusculas(@Texto VARCHAR(5000))
+RETURNS VARCHAR(5000)
+BEGIN
+
+	DECLARE @Retorno VARCHAR(5000) = ''
+	DECLARE @Posicao INT
+	DECLARE @Palavra VARCHAR(150)
+
+	SET @Posicao = 0
+
+	SET @Texto = LTRIM(RTRIM(LOWER(@Texto)))
+
+	WHILE 1 = 1
+	BEGIN
+		SET @Posicao = CHARINDEX(' ', @Texto, @Posicao+1)
+
+		IF @Posicao = 0
+		BEGIN
+			SET @Palavra = LTRIM(RTRIM(SUBSTRING(@Texto, LEN(@Retorno)+1, LEN(@Texto))))
+			SET @Retorno = LTRIM(RTRIM(@Retorno + ' ' + UPPER(LEFT(@Palavra, 1)) + RIGHT(@Palavra, LEN(LTRIM(@Palavra))-1)))
+			BREAK
+		END
+		ELSE
+			SET @Palavra = LTRIM(RTRIM(SUBSTRING(@Texto, LEN(@Retorno)+1, @Posicao - LEN(@Retorno))))
+
+		SET @Retorno = LTRIM(RTRIM(@Retorno + ' ' + UPPER(LEFT(@Palavra, 1)) + RIGHT(@Palavra, LEN(LTRIM(@Palavra))-1))) 
+	END
+
+	RETURN REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+	@Retorno, ' DE ', ' de '), ' DA ', ' da '), ' DO ', ' do '), ' DAS ', ' das '), ' DOS ', ' dos ')
+END
 GO
