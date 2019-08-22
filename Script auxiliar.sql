@@ -31,7 +31,7 @@ go
 */
 
 
-IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'Fn_PrimeirasMaiusculas2'))
+IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'Fn_PrimeirasMaiusculas'))
 	DROP FUNCTION Fn_PrimeirasMaiusculas
 IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'SP_OMGerarScriptBasico'))
 	DROP PROC SP_OMGerarScriptBasico
@@ -49,7 +49,6 @@ IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'SP_OrganizarSequencia'))
 	DROP PROC SP_OrganizarSequencia
 IF(EXISTS(SELECT 1 FROM SYS.OBJECTS WHERE NAME LIKE 'Vw_OMTabelas'))
 	DROP VIEW Vw_OMTabelas	
-
 IF(EXISTS(SELECT 1 FROM SYS.OBJECTS WHERE NAME LIKE 'SP_TabelasFaltantes'))
 	DROP PROC SP_TabelasFaltantes
 IF(EXISTS(SELECT 1 FROM SYS.OBJECTS WHERE NAME LIKE 'SP_InserirColuna'))
