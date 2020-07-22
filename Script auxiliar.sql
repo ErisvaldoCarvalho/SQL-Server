@@ -29,8 +29,10 @@ IF EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'Bancos')
 		DROP TABLE Bancos
 go
 */
-
-
+IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'Fn_Hexadecimal'))
+	DROP FUNCTION Fn_Hexadecimal
+IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'SP_MostrarBloqueios'))
+	DROP PROC SP_MostrarBloqueios
 IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'Fn_PrimeirasMaiusculas'))
 	DROP FUNCTION Fn_PrimeirasMaiusculas
 IF(EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'SP_OMGerarScriptBasico'))
@@ -63,6 +65,86 @@ IF(EXISTS(SELECT 1 FROM SYS.OBJECTS WHERE NAME LIKE 'SP_MostrarEstrutura'))
 	DROP PROC SP_MostrarEstrutura
 	
 GO	
+
+CREATE FUNCTION [dbo].[Fn_Hexadecimal](
+    @Numero INT
+)
+RETURNS VARCHAR(50)
+AS
+BEGIN
+     DECLARE 
+        @Sequencia VARCHAR(16) = '0123456789ABCDEF',
+        @Resultado VARCHAR(50),
+        @Digito CHAR(1)   
+    
+    SET @Resultado = SUBSTRING(@Sequencia, (@Numero % 16) + 1, 1)
+ 
+    WHILE (@Numero > 0)
+    BEGIN    
+        SET @Digito = SUBSTRING(@Sequencia, ((@Numero / 16) % 16) + 1, 1)
+        SET @Numero = @Numero / 16
+
+        IF (@Numero != 0 )
+            SET @Resultado = @Digito + @Resultado            
+    END 
+ 
+    RETURN @Resultado    
+END
+GO
+
+CREATE PROC SP_MostrarBloqueios
+AS
+	SET NOCOUNT ON
+
+	CREATE TABLE #Temp
+	(
+		Eventtype NVARCHAR(30)NOT NULL,
+		Parameters INT NOT NULL,
+		EventInfo NVARCHAR(255)NOT NULL
+	)
+	
+	CREATE TABLE #Comandos
+	(
+		Descricao VARCHAR(100),
+		Spid INT,
+		Eventtype NVARCHAR(30)NOT NULL,
+		Parameters INT NOT NULL,
+		EventInfo NVARCHAR(255)NOT NULL
+	)
+
+	DECLARE @Blocked INT, @Spid INT, @Comando VARCHAR(255),
+	@Conexao INT
+
+	SELECT * INTO #SYSPROCESSESTEMP	FROM MASTER.DBO.SYSPROCESSES WHERE BLOCKED > 0
+
+    SET ROWCOUNT 1
+    WHILE EXISTS(SELECT 1 FROM #SYSPROCESSESTEMP)
+    BEGIN
+		SELECT @Blocked = blocked, @Spid = spid FROM #SYSPROCESSESTEMP
+
+		SET @Conexao = @Blocked -- Conexao
+		SET @Comando = 'DBCC INPUTBUFFER(' + CONVERT(VARCHAR, @Conexao) + ')'
+
+		INSERT INTO #Temp
+		EXEC (@Comando)
+
+		INSERT INTO #Comandos(Descricao, spid, Eventtype, Parameters, EventInfo) (SELECT 'Bloqueando o ' + CONVERT(VARCHAR, @spid), @Conexao, Eventtype, Parameters, EventInfo FROM #Temp)
+
+		SET @Conexao = @Spid -- Conexao
+		SET @Comando = 'DBCC INPUTBUFFER(' + Convert(VarChar, @Conexao) + ')'
+
+		DELETE FROM #Temp
+
+		INSERT INTO #Temp
+		EXEC (@Comando)
+
+		INSERT INTO #Comandos(Descricao, Spid, Eventtype, Parameters, EventInfo) (SELECT 'Bloqueado pelo ' + CONVERT(VARCHAR, @blocked), @Conexao, Eventtype, Parameters, EventInfo FROM #Temp)
+		
+		DELETE FROM #SYSPROCESSESTEMP WHERE spid = @Spid AND blocked = @Blocked
+	END
+	SET ROWCOUNT 0
+	SELECT*FROM #Comandos
+GO
 
 CREATE PROC SP_OMGerarScriptBasico
       @TABELA VARCHAR(500)
