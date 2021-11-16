@@ -1,5 +1,5 @@
 /*
-O repositório foi clonado para o meu Notebook dia 16/11/2021
+O repositório foi clonado para o meu Notebook dia 16/11/2021 às 13:36
 */
 /*
 RODANDO ESTE SCRIPT SERÃO CRIADOS EM TODOS OS BANCOS 
