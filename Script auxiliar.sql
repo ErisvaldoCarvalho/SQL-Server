@@ -1,4 +1,6 @@
-
+/*
+O repositório foi clonado para o meu Notebook dia 16/11/2021
+*/
 /*
 RODANDO ESTE SCRIPT SERÃO CRIADOS EM TODOS OS BANCOS 
 DE DADOS ATACHADOS NO SERVIDOR OS COMPONENTES QUE 
