@@ -7,8 +7,14 @@ RODANDO ESTE SCRIPT SERÃO CRIADOS EM TODOS OS BANCOS
 DE DADOS ATACHADOS NO SERVIDOR OS COMPONENTES QUE 
 AUXLIAM NA MANUTENÇÃO DE BANCO DE DADOS.
 */
+use master
+go
+drop database modelagem
+go
+create database modelagem
+go
+use modelagem
 
-USE master
 GO
 /*
 IF NOT EXISTS(SELECT 1 FROM SYS.objects WHERE NAME = 'Bancos')
@@ -66,7 +72,6 @@ IF(EXISTS(SELECT 1 FROM SYS.OBJECTS WHERE NAME LIKE 'SP_InserirColunasFinais'))
 	DROP PROC SP_InserirColunasFinais
 IF(EXISTS(SELECT 1 FROM SYS.OBJECTS WHERE NAME LIKE 'SP_MostrarEstrutura'))
 	DROP PROC SP_MostrarEstrutura
-	
 GO	
 
 CREATE FUNCTION [dbo].[Fn_Hexadecimal](
@@ -577,7 +582,8 @@ CREATE PROC SP_InserirColuna
 	@Tabela VARCHAR(200),
 	@Coluna VARCHAR(200) = 'Descricao',
 	@Tipo VARCHAR(200) = 'VARCHAR(150)',
-	@AceitaNulo BIT = 1
+	@AceitaNulo BIT = 1,
+	@Primeira BIT = NULL
 AS
 	DECLARE @SQL VARCHAR(MAX) 
 	
@@ -591,10 +597,16 @@ AS
 		SET @Tipo = 'VARCHAR(15)'
 	
 	IF(@Coluna LIKE '%CPF%')
+	BEGIN
 		SET @Tipo = 'VARCHAR(14)'	
+		SET @Coluna = UPPER(@Coluna)
+	END
 
 	IF(@Coluna LIKE '%CNPJ%')
+	BEGIN
 		SET @Tipo = 'VARCHAR(18)'
+		SET @Coluna = UPPER(@Coluna)
+	END
 	
 	IF(@Coluna LIKE 'ID_%' OR @Coluna LIKE 'Valor%')
 		SET @Tipo = 'FLOAT'
@@ -619,7 +631,7 @@ AS
 	SET @SQL = REPLACE(REPLACE(REPLACE('IF NOT EXISTS(SELECT 1 FROM VW_OMColunas WHERE Tabela = ''@Tabela'' AND Coluna = ''@Coluna'') ALTER TABLE @Tabela ADD @Coluna @Tipo','@Tabela', @Tabela), '@Tipo', @Tipo),'@Coluna', @Coluna)
 	
 	IF(NOT EXISTS(SELECT 1 FROM ERIS_Estrutura WHERE Script = @SQL))
-		INSERT INTO ERIS_Estrutura(Script, Tabela, Coluna)VALUES(@SQL, @Tabela, @Coluna)
+		INSERT INTO ERIS_Estrutura(Script, Primeira, Tabela, Coluna)VALUES(@SQL, @Primeira, @Tabela, @Coluna)
 
 	EXEC (@SQL)
 	
@@ -662,3 +674,11 @@ BEGIN
 	@Retorno, ' DE ', ' de '), ' DA ', ' da '), ' DO ', ' do '), ' DAS ', ' das '), ' DOS ', ' dos ')
 END
 GO
+
+EXEC SP_InserirColuna cliente, nome
+EXEC SP_InserirColuna cliente, cpf
+EXEC SP_InserirColuna cliente, DataNacimento, DATETIME
+
+	SELECT*FROM ERIS_Estrutura
+	select*from cliente
+
